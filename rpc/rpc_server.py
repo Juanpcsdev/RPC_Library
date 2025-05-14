@@ -14,29 +14,23 @@ print("Iniciando a classe RPCServer...")  # Log de depuração
 
 class RPCServer:
     def __init__(self, host='localhost', port=5001, binder_ip='localhost', binder_port=5000):
-        print("Entrando no __init__ do RPCServer...")  # Log de depuração
+        print("Inicializando RPCServer...")
         self.host = host
         self.port = port
         self.math_service = MathService()
-        self.server_socket = None
         self.binder_ip = binder_ip
         self.binder_port = binder_port
-        self.server_ready = threading.Event()  # Evento para indicar que o servidor está pronto
-        print("Inicialização do RPCServer concluída...")  # Log de depuração
+        self.server_socket = None
 
     def handle_client(self, client_socket):
-        print("Aguardando requisição do cliente...")  # Log de depuração
         try:
-            # Recebe a requisição do cliente
-            request = client_socket.recv(1024)
+            request = client_socket.recv(4096)  # aumentei o buffer pra garantir
 
             if request:
-                # Desserializa a requisição
                 data = Serializer.deserialize(request)
                 function_name = data['function']
                 args = data['args']
 
-                # Verifica se a função existe no serviço
                 if hasattr(self.math_service, function_name):
                     func = getattr(self.math_service, function_name)
                     result = func(*args)
@@ -44,52 +38,50 @@ class RPCServer:
                 else:
                     response = Serializer.serialize(f"Função '{function_name}' não encontrada.")
 
-                # Envia a resposta serializada de volta ao cliente
                 client_socket.sendall(response)
+            client_socket.close()
 
         except Exception as e:
-            print(f"Erro no processamento do cliente: {str(e)}")
-            # Em caso de erro inesperado, envia a mensagem de erro
-            error_message = f"Ocorreu um erro: {str(e)}"
+            error_message = f"Erro no processamento: {str(e)}"
             response = Serializer.serialize(error_message)
-            client_socket.sendall(response)
+            try:
+                client_socket.sendall(response)
+                client_socket.close()
+            except:
+                pass
+            print(error_message)
+
+    def register_service_to_binder(self):
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.connect((self.binder_ip, self.binder_port))
+            message = f"REGISTER|MathService|{self.host}|{self.port}"
+            s.sendall(message.encode())
+            response = s.recv(1024)
+            print(f"Resposta do Binder ao registrar serviço: {response.decode()}")
+
 
     def start_server(self):
-        print("Tentando iniciar o servidor...")  # Log de depuração
+        print(f"Iniciando servidor RPC em {self.host}:{self.port}...")
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_socket.bind((self.host, self.port))
+        self.server_socket.listen(5)
+
+        # Registrar serviço no Binder via socket
+        self.register_service_to_binder()
 
         try:
-            # Cria o socket do servidor
-            self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            print("Socket do servidor criado com sucesso.")  # Log de depuração
-            
-            # Tenta fazer bind na porta
-            self.server_socket.bind((self.host, self.port))
-            self.server_socket.listen(5)
-            print(f"Servidor RPC iniciado em {self.host}:{self.port}...")  # Log de depuração
-
-            # Registrar o serviço no Binder
-            binder = Binder(host=self.binder_ip, port=self.binder_port)
-            binder.register_service("MathService", self.host, self.port)
-            print(f"Serviço MathService registrado no Binder em {self.host}:{self.port}")  # Log de depuração
-
-            # Sinaliza que o servidor está pronto para aceitar conexões
-            self.server_ready.set()
-
-            # Aceita uma conexão (deixe o servidor funcionar por um tempo limitado)
-            self.server_socket.settimeout(5)  # Tempo de espera máximo de 5 segundos
-            try:
-                print("Esperando conexões...")  # Log de depuração
+            while True:
                 client_socket, addr = self.server_socket.accept()
-                print(f"Cliente {addr} conectado.")  # Log de depuração
+                print(f"Conexão recebida de {addr}")
                 client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
+                client_thread.daemon = True
                 client_thread.start()
-            except socket.timeout:
-                print("Timeout: Nenhuma conexão recebida.")
-                raise RuntimeError("Erro crítico: Timeout atingido.")  # Levanta uma exceção em caso de erro
-        except socket.error as e:
-            print(f"Erro ao tentar bind na porta {self.port}: {e}")  # Log de depuração
+        except KeyboardInterrupt:
+            print("Servidor encerrado manualmente.")
         finally:
-            # Fecha o servidor após o teste
-            if self.server_socket:
-                self.server_socket.close()
-            print("Servidor fechado após o teste.")  # Log de depuração
+            self.server_socket.close()
+            print("Socket do servidor fechado.")
+
+if __name__ == "__main__":
+    server = RPCServer()
+    server.start_server()
