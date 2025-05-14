@@ -2,13 +2,13 @@ import sys
 import os
 import socket
 import threading
+import time
 
 # Adiciona a raiz do projeto ao sys.path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from interface.math_service import MathService
 from rpc.serializer import Serializer
-from rpc.rpc_binder import Binder
 
 print("Iniciando a classe RPCServer...")  # Log de depuração
 
@@ -51,13 +51,21 @@ class RPCServer:
                 pass
             print(error_message)
 
-    def register_service_to_binder(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((self.binder_ip, self.binder_port))
-            message = f"REGISTER|MathService|{self.host}|{self.port}"
-            s.sendall(message.encode())
-            response = s.recv(1024)
-            print(f"Resposta do Binder ao registrar serviço: {response.decode()}")
+    def register_service_to_binder(self, retries=10, delay=1):
+        for attempt in range(retries):
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.connect((self.binder_ip, self.binder_port))
+                    message = f"REGISTER|MathService|{self.host}|{self.port}"
+                    s.sendall(message.encode())
+                    response = s.recv(1024)
+                    print(f"Resposta do Binder ao registrar serviço: {response.decode()}")
+                    return  # registro bem-sucedido, sai da função
+            except ConnectionRefusedError:
+                print(f"Tentativa {attempt+1}/{retries}: Binder não acessível em {self.binder_ip}:{self.binder_port}. Tentando novamente em {delay}s...")
+                time.sleep(delay)
+        print("Não foi possível conectar ao Binder após várias tentativas. Encerrando servidor.")
+        sys.exit(1)
 
 
     def start_server(self):

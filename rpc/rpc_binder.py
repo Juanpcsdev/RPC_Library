@@ -19,32 +19,37 @@ class Binder:
 
     def start_binder(self):
         print(f"Binder iniciado em {self.host}:{self.port}")
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.bind((self.host, self.port))
-            s.listen(5)
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                s.bind((self.host, self.port))
+                s.listen(5)
 
-            while True:
-                client_socket, addr = s.accept()
-                with client_socket:
-                    try:
-                        data = client_socket.recv(1024).decode()
-                        print(f"Recebido do cliente: {data}")
+                while True:
+                    client_socket, addr = s.accept()
+                    with client_socket:
+                        try:
+                            data = client_socket.recv(1024).decode()
+                            print(f"Recebido do cliente: {data}")
 
-                        if data.startswith("REGISTER"):
-                            _, service_name, ip, port = data.split('|')
-                            self.register_service(service_name, ip, int(port))
-                            client_socket.sendall(b"Service Registered")
+                            if data.startswith("REGISTER"):
+                                _, service_name, ip, port = data.split('|')
+                                self.register_service(service_name, ip, int(port))
+                                client_socket.sendall(b"Service Registered")
 
-                        elif data.startswith("LOOKUP"):
-                            _, service_name = data.split('|')
-                            service = self.lookup_service(service_name)
-                            if service:
-                                response = f"{service[0]}|{service[1]}"
-                            else:
-                                response = "Service Not Found"
-                            client_socket.sendall(response.encode())
-                    except Exception as e:
-                        print(f"Erro ao processar cliente {addr}: {e}")
+                            elif data.startswith("LOOKUP"):
+                                _, service_name = data.split('|')
+                                service = self.lookup_service(service_name)
+                                if service:
+                                    response = f"{service[0]}|{service[1]}"
+                                else:
+                                    response = "Service Not Found"
+                                client_socket.sendall(response.encode())
+                        except Exception as e:
+                            print(f"Erro ao processar cliente {addr}: {e}")
+        except KeyboardInterrupt:
+            print("\nBinder encerrado pelo usuário.")
+        except Exception as e:
+            print(f"Erro crítico no Binder: {e}")
 
 if __name__ == "__main__":
     binder = Binder()

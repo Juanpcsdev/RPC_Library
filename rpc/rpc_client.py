@@ -11,7 +11,7 @@ def main():
     binder_ip = 'localhost'
     binder_port = 5000
 
-    # Espera até Binder estar pronto para evitar erro de conexão
+    # Espera até Binder estar pronto
     for i in range(10):
         try:
             with socket.create_connection((binder_ip, binder_port), timeout=2) as sock:
@@ -31,6 +31,9 @@ def main():
         print("Resultado de 4 * 2:", math_stub.multiply(4, 2))
         print("Resultado de 5 - 3:", math_stub.subtract(5, 3))
         print("Resultado de 4 / 2:", math_stub.divide(4, 2))
+    except ConnectionRefusedError:
+        print("Erro: Servidor RPC não está disponível. Inicie o servidor antes de tentar novamente.")
+        sys.exit(1)
     except Exception as e:
         print(f"Erro na chamada RPC: {e}")
         sys.exit(1)
