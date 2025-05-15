@@ -10,13 +10,12 @@ Este projeto implementa uma biblioteca RPC (Remote Procedure Call) em Python usa
 Library_RPC/
 │
 ├── rpc/
-│
 │ ├── init.py # Inicialização do pacote RPC
 │ ├── rpc_binder.py # Binder - registro e consulta de serviços
 │ ├── rpc_server.py # Servidor RPC
 │ ├── rpc_client.py # Cliente RPC
 │ ├── rpc_stub_generator.py # Stub para chamadas remotas
-│ ├── serializer.py # Serialização dos dados
+│ └── serializer.py # Serialização dos dados
 │
 ├── interface/
 │ └── math_service.py # Serviço exemplo: calculadora
