@@ -3,6 +3,7 @@ import os
 import socket
 import time
 
+# Ajusta o caminho para importar módulos da pasta pai
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from rpc.rpc_stub_generator import MathServiceStub
@@ -11,7 +12,7 @@ def main():
     binder_ip = 'localhost'
     binder_port = 5000
 
-    # Espera até Binder estar pronto
+    # Tenta conectar ao Binder, aguardando até 10 tentativas com delay
     for i in range(10):
         try:
             with socket.create_connection((binder_ip, binder_port), timeout=2) as sock:
@@ -27,6 +28,7 @@ def main():
     math_stub = MathServiceStub(binder_ip, binder_port)
 
     try:
+        # Chama funções remotas e exibe resultados
         print("Resultado de 5 + 3:", math_stub.add(5, 3))
         print("Resultado de 4 * 2:", math_stub.multiply(4, 2))
         print("Resultado de 5 - 3:", math_stub.subtract(5, 3))

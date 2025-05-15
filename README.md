@@ -101,11 +101,95 @@ python rpc/rpc_client.py
 ---
 
 ## Como adicionar novos serviços à biblioteca
+Vamos simular a criação de um serviço que realiza conversão direta entre Fahrenheit e Celsius. Este exemplo mostrará passo a passo como integrar um novo serviço à biblioteca RPC, desde a implementação da lógica até a exposição via servidor e o consumo pelo cliente.
 
+### 1. Criando o arquivo de serviço
+Na pasta `/interface` crie o arquivo `temperature_servive.py` e adicione a implementação da lógica de conversão:
+
+```bash 
+class TemperatureService:
+    def celsius_to_fahrenheit(self, c):
+        return c * 9/5 + 32
+
+    def fahrenheit_to_celsius(self, f):
+        return (f - 32) * 5/9
+```
+### 2. Adaptando o servidor RPC para expor o novo serviço
+No código atual `rpc_server.py`, substitua a instância do serviço atual pela do novo serviço `TemperatureService`.
+
+Altere o método que encaminha as chamadas para o serviço:
+
+Linha 10:
+```bash
+from interface.temperature_service import TemperatureService
+```
+
+Linha 20:
+```bash
+self.service_name = TemperatureService()
+```
+
+Linhas 60 (**OPCIONAL**, Apenas para deixar melhor visualmente):
+```bash
+message = f"REGISTER|TemperatureService|{self.host}|{self.port}"
+```
+
+### 3. Adaptando o Stub generator para o novo serviço
+No código atual `rpc_stub_generator.py`, crie uma nova classe de stub para o `TemperatureService`. 
+
+Altere com os métodos correspondentes:
+
+Linha 5:
+```bash
+class TemperatureServiceStub:
+```
+
+Linha 53 até a 63:
+```bash
+def celsius_to_fahrenheit(self, c):
+        return self._send_request("TemperatureService", "celsius_to_fahrenheit", c)
+
+    def fahrenheit_to_celsius(self, f):
+        return self._send_request("TemperatureService", "fahrenheit_to_celsius", f)
+```
+
+### 4. Adaptando o Init para o novo serviço
+No código atual `__init__.py`, importe o novo stub para que ele fique disponível para os clientes. 
+
+Altere com os métodos correspondentes:
+
+Linha 3:
+```bash
+from .rpc_client import TemperatureServiceStub
+```
+
+### 5. Adaptando o Client para o novo serviço
+No código atual `rpc_client.py`, importe o novo stub e crie um cliente para testar o serviço.
+
+Altere com os métodos correspondentes:
+
+Linha 9:
+```bash
+from rpc.rpc_stub_generator import TemperatureServiceStub
+```
+
+Linha 28:
+```bash
+temp_stub = TemperatureServiceStub(binder_ip, binder_port)
+```
+
+Linha 32 até a 35:
+```bash
+print("100 Celsius em Fahrenheit:", temp_stub.celsius_to_fahrenheit(100))
+print("212 Fahrenheit em Celsius:", temp_stub.fahrenheit_to_celsius(212))
+```
+Agora, basta seguir a sessão **Como executar** para iniciar o Binder, servidor e cliente normalmente.
 
 ---
 
 ## Exemplos de execução
+
+⚠️ Modelo baseado no serviço `math_service.py`⚠️
 
 Exemplo de servidor (`example/server_example.py`)
 
@@ -163,7 +247,7 @@ if __name__ == "__main__":
 
 ---
 
-## Notas Importantes
+## Notas Importantes ⚠️
 
 * **Limitações:** Este sistema é uma simulação didática de RPC e não possui mecanismos avançados de segurança, autenticação ou criptografia. Não é recomendado para uso em ambientes produtivos sem adaptações.
 
